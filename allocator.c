@@ -46,5 +46,19 @@ void *my_malloc( size_t size ){
         mover = newBlock;
     }
 
-    return memory + sizeof(block_t);
+    return (char *)memory + sizeof(block_t);
 } 
+
+void my_free(void *ptr){
+    if(ptr == NULL) return;
+
+    block_t* block = (block_t*)((char*)ptr - sizeof(block_t));
+    block -> free = true;
+}
+
+void check_block(void *ptr) {
+    block_t *block = (block_t*)((char*)ptr - sizeof(block_t));
+
+    printf("size = %zu\n", block->size);
+    printf("free = %d\n", block->free);
+}
