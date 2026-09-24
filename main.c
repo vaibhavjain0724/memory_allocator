@@ -4,17 +4,31 @@
 void *my_malloc(size_t size);
 void my_free(void *ptr);
 void check_block(void *ptr);
+#include <stdio.h>
+
+void *my_malloc(size_t size);
+void my_free(void *ptr);
+void check_block(void *ptr);
 
 int main() {
-    int *p = my_malloc(sizeof(int));
+    int *a = my_malloc(sizeof(int));
 
-    *p = 42;
+    *a = 42;
 
-    check_block(p);
+    printf("a = %d\n", *a);
 
-    my_free(p);
+    check_block(a);
 
-    check_block(p);
+    my_free(a);
+
+    check_block(a);
+
+    int *b = my_malloc(sizeof(int));
+
+    check_block(b);
+
+    printf("a address = %p\n", (void *)a);
+    printf("b address = %p\n", (void *)b);
 
     return 0;
 }

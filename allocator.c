@@ -15,6 +15,16 @@ static block_t *head = NULL;
 static block_t *mover = NULL;
 
 void *my_malloc( size_t size ){
+    block_t *traverser = head;
+
+
+    while(traverser != NULL){
+        if(traverser -> size >= size && traverser -> free == true){
+             traverser -> free = false;
+            return (char*)traverser + sizeof(block_t);
+        }
+        traverser = traverser -> next;
+    }
 
     size_t total_size = sizeof(block_t) + size;
     int permissions = PROT_READ | PROT_WRITE;
