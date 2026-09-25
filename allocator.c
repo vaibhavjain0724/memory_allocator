@@ -64,6 +64,7 @@ bool create_arena(){
 }
 
 
+
 block_t *create_block(size_t size, arena_t* arena){
     if(size > ARENA_SIZE )return NULL;
 
@@ -83,14 +84,19 @@ block_t *create_block(size_t size, arena_t* arena){
 
 }
 
+size_t align_size( size_t size ){
+   if(size % 8 == 0 )return size;
+
+   return (((size/8) + 1 )* 8);
+}
+
 
 
 void *my_malloc( size_t size ){
+    size = align_size(size);
 
-    if(arena_head == NULL){
-        create_arena();
-    }
 
+    if(ARENA_SIZE < size + sizeof(block_t)) return NULL;
 
     arena_t *arena_traverser = arena_head;
     size_t true_size = size + sizeof(block_t);
