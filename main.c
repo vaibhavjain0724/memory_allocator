@@ -1,25 +1,38 @@
 #include <stdio.h>
+#include <stddef.h>
 
 void *my_malloc(size_t size);
 void my_free(void *ptr);
 void check_block(void *ptr);
 
 int main() {
-    int *a = my_malloc(sizeof(int));
-    int *b = my_malloc(sizeof(int));
-    int *c = my_malloc(sizeof(int));
 
-    *a = 10;
-    *b = 20;
-    *c = 30;
+    void *a = my_malloc(100);
+    void *b = my_malloc(100);
+    void *c = my_malloc(100);
 
-    printf("a = %d, address = %p\n", *a, (void *)a);
-    printf("b = %d, address = %p\n", *b, (void *)b);
-    printf("c = %d, address = %p\n", *c, (void *)c);
+    printf("Addresses:\n");
+    printf("a = %p\n", a);
+    printf("b = %p\n", b);
+    printf("c = %p\n", c);
 
-    check_block(a);
+    printf("\n--- Freeing b ---\n");
+    my_free(b);
+
+    printf("b: ");
     check_block(b);
-    check_block(c);
+
+    printf("\n--- Freeing a ---\n");
+    my_free(a);
+
+    printf("a: ");
+    check_block(a);
+
+    printf("\n--- Allocating 180 bytes ---\n");
+    void *d = my_malloc(180);
+
+    printf("d = %p\n", d);
+    check_block(d);
 
     return 0;
 }

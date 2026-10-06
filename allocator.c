@@ -131,25 +131,52 @@ void *my_malloc(size_t size) {
 }
 
 
-void coalesce(block_t *block) {
-    if (block->next != NULL && block->next->free) {
+void coalesce(arena_t *arena) {
+    block_t *current = arena->block_head;
 
-        block_t *next = block->next;
+    while (current != NULL && current->next != NULL) {
 
-        block->size += sizeof(block_t) + next->size;
-        block->next = next->next;
+        if (current->free && current->next->free) {
+
+            block_t *next = current->next;
+
+            current->size += sizeof(block_t) + next->size;
+            current->next = next->next;
+
+            if (next == arena->block_tail) {
+                arena->block_tail = current;
+            }
+        } else {
+            current = current->next;
+        }
     }
 }
-
+ 
 void my_free(void *ptr) {
-  if (ptr == NULL)
-    return;
+    if (ptr == NULL)
+        return;
 
-  block_t *block = (block_t *)((char *)ptr - sizeof(block_t));
-  block->free = true;
+    block_t *block =
+        (block_t *)((char *)ptr - sizeof(block_t));
 
-  coalesce(block);
+    block->free = true;
 
+    arena_t *arena = arena_head;
+
+    while (arena != NULL) {
+        block_t *current = arena->block_head;
+
+        while (current != NULL) {
+            if (current == block) {
+                coalesce(arena);
+                return;
+            }
+
+            current = current->next;
+        }
+
+        arena = arena->next;
+    }
 }
 
 void check_block(void *ptr) {
