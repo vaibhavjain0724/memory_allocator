@@ -105,6 +105,10 @@ void *my_malloc(size_t size) {
           new_block->next = traverser->next;
           traverser->next = new_block;
 
+          if (traverser == arena_traverser->block_tail) {
+            arena_traverser->block_tail = new_block;
+          }
+
           traverser->size = size;
         }
         traverser->free = false;
@@ -126,12 +130,26 @@ void *my_malloc(size_t size) {
   return my_malloc(size);
 }
 
+
+void coalesce(block_t *block) {
+    if (block->next != NULL && block->next->free) {
+
+        block_t *next = block->next;
+
+        block->size += sizeof(block_t) + next->size;
+        block->next = next->next;
+    }
+}
+
 void my_free(void *ptr) {
   if (ptr == NULL)
     return;
 
   block_t *block = (block_t *)((char *)ptr - sizeof(block_t));
   block->free = true;
+
+  coalesce(block);
+
 }
 
 void check_block(void *ptr) {
