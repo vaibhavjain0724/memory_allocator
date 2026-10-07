@@ -94,12 +94,38 @@ void coalesce(arena_t *arena) {
   }
 }
 
+
+block_t *find_block(void *ptr) {
+  arena_t *arena = arena_head;
+
+  while (arena != NULL) {
+    block_t *current = arena->block_head;
+
+    while (current != NULL) {
+      void *block_memory =
+          (char *)current + sizeof(block_t);
+
+      if (block_memory == ptr) {
+        return current;
+      }
+
+      current = current->next;
+    }
+
+    arena = arena->next;
+  }
+
+  return NULL;
+}
+
 void my_free(void *ptr) {
   if (ptr == NULL)
     return;
 
   block_t *block =
-      (block_t *)((char *)ptr - sizeof(block_t));
+      find_block(ptr);
+
+  if(block == NULL) return;
 
   block->free = true;
 
@@ -123,8 +149,12 @@ void my_free(void *ptr) {
 }
 
 void check_block(void *ptr) {
-  block_t *block =
-      (block_t *)((char *)ptr - sizeof(block_t));
+  block_t *block = find_block(ptr);
+
+  if (block == NULL) {
+    printf("Invalid block\n");
+    return;
+  }
 
   printf("size = %zu\n", block->size);
   printf("free = %d\n", block->free);
