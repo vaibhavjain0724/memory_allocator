@@ -1,6 +1,8 @@
 #include "allocator.h"
 #include "arena.h"
 #include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 
 size_t align_size(size_t size) {
   if (size % 8 == 0)
@@ -146,6 +148,23 @@ void my_free(void *ptr) {
 
     arena = arena->next;
   }
+}
+
+void *my_calloc(size_t n, size_t size) {
+
+  if (size != 0 && n > SIZE_MAX / size)
+    return NULL;
+
+  size_t total_size = n * size;
+
+  void *ptr = my_malloc(total_size);
+
+  if (ptr == NULL)
+    return NULL;
+
+  memset(ptr, 0, total_size);
+
+  return ptr;
 }
 
 void check_block(void *ptr) {
