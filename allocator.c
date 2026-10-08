@@ -4,6 +4,11 @@
 #include <string.h>
 #include <stdint.h>
 
+#include <pthread.h>
+
+static pthread_mutex_t allocator_lock =
+    PTHREAD_MUTEX_INITIALIZER;
+
 size_t align_size(size_t size) {
   if (size % 8 == 0)
     return size;
@@ -11,7 +16,7 @@ size_t align_size(size_t size) {
   return (((size / 8) + 1) * 8);
 }
 
-void *my_malloc(size_t size) {
+static void *malloc_internal(size_t size) {
   size = align_size(size);
 
   if (ARENA_SIZE < size + sizeof(block_t))
@@ -71,7 +76,17 @@ void *my_malloc(size_t size) {
     return NULL;
   }
 
-  return my_malloc(size);
+  return malloc_internal(size);
+}
+
+void *my_malloc(size_t size) {
+  pthread_mutex_lock(&allocator_lock);
+
+  void *ptr = malloc_internal(size);
+
+  pthread_mutex_unlock(&allocator_lock);
+
+  return ptr;
 }
 
 void coalesce(arena_t *arena) {
@@ -120,14 +135,15 @@ block_t *find_block(void *ptr) {
   return NULL;
 }
 
-void my_free(void *ptr) {
+static void free_internal(void *ptr) {
   if (ptr == NULL)
     return;
 
   block_t *block =
       find_block(ptr);
 
-  if(block == NULL) return;
+  if (block == NULL)
+    return;
 
   block->free = true;
 
@@ -148,6 +164,14 @@ void my_free(void *ptr) {
 
     arena = arena->next;
   }
+}
+
+void my_free(void *ptr) {
+  pthread_mutex_lock(&allocator_lock);
+
+  free_internal(ptr);
+
+  pthread_mutex_unlock(&allocator_lock);
 }
 
 void *my_calloc(size_t n, size_t size) {
