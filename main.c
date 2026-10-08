@@ -1,9 +1,10 @@
 #include "allocator.h"
 #include <stdio.h>
+#include <string.h>
 
 int main() {
 
-    printf("========== TEST 1: BASIC ALLOCATION ==========\n");
+    printf("========== TEST 1: BASIC MALLOC ==========\n");
 
     void *a = my_malloc(100);
 
@@ -22,17 +23,15 @@ int main() {
     printf("\n========== TEST 3: FREE + REUSE ==========\n");
 
     void *c = my_malloc(100);
-
     printf("c = %p\n", c);
 
     my_free(c);
 
     void *d = my_malloc(80);
-
     printf("d = %p\n", d);
 
-    if (d == c)
-        printf("PASS: block reused\n");
+    if (c == d)
+        printf("PASS: freed block reused\n");
     else
         printf("FAIL: block not reused\n");
 
@@ -40,19 +39,17 @@ int main() {
     printf("\n========== TEST 4: SPLITTING ==========\n");
 
     void *e = my_malloc(300);
-
     printf("e = %p\n", e);
     check_block(e);
 
     my_free(e);
 
     void *f = my_malloc(100);
-
     printf("f = %p\n", f);
     check_block(f);
 
-    if (f == e)
-        printf("PASS: large free block reused and split\n");
+    if (e == f)
+        printf("PASS: block reused and split\n");
     else
         printf("FAIL: block not reused\n");
 
@@ -78,63 +75,165 @@ int main() {
     if (j == g)
         printf("PASS: blocks coalesced and reused\n");
     else
-        printf("FAIL: blocks did not coalesce correctly\n");
+        printf("FAIL: blocks did not coalesce\n");
 
 
-    printf("\n========== TEST 6: MULTIPLE ARENAS ==========\n");
+    printf("\n========== TEST 6: CALLOC ==========\n");
 
-    void *k = my_malloc(600000);
-    void *l = my_malloc(600000);
+    int *arr = my_calloc(5, sizeof(int));
 
-    printf("k = %p\n", k);
-    printf("l = %p\n", l);
+    if (arr == NULL) {
+        printf("FAIL: calloc returned NULL\n");
+    } else {
+        printf("calloc array: ");
 
-    if (k != NULL && l != NULL)
-        printf("PASS: multiple arenas working\n");
+        for (int x = 0; x < 5; x++) {
+            printf("%d ", arr[x]);
+        }
+
+        printf("\n");
+
+        int all_zero = 1;
+
+        for (int x = 0; x < 5; x++) {
+            if (arr[x] != 0) {
+                all_zero = 0;
+                break;
+            }
+        }
+
+        if (all_zero)
+            printf("PASS: calloc memory is zeroed\n");
+        else
+            printf("FAIL: calloc memory is not zeroed\n");
+    }
+
+
+    printf("\n========== TEST 7: REALLOC GROW ==========\n");
+
+    int *numbers = my_malloc(3 * sizeof(int));
+
+    numbers[0] = 10;
+    numbers[1] = 20;
+    numbers[2] = 30;
+
+    printf("Before realloc:\n");
+    printf("%d %d %d\n",
+           numbers[0],
+           numbers[1],
+           numbers[2]);
+
+    int *new_numbers =
+        my_realloc(numbers, 6 * sizeof(int));
+
+    if (new_numbers == NULL) {
+        printf("FAIL: realloc returned NULL\n");
+    } else {
+        printf("After realloc:\n");
+        printf("%d %d %d\n",
+               new_numbers[0],
+               new_numbers[1],
+               new_numbers[2]);
+
+        if (new_numbers[0] == 10 &&
+            new_numbers[1] == 20 &&
+            new_numbers[2] == 30) {
+            printf("PASS: realloc preserved old data\n");
+        } else {
+            printf("FAIL: realloc corrupted old data\n");
+        }
+    }
+
+
+    printf("\n========== TEST 8: REALLOC SHRINK ==========\n");
+
+    int *values = my_malloc(5 * sizeof(int));
+
+    values[0] = 100;
+    values[1] = 200;
+    values[2] = 300;
+    values[3] = 400;
+    values[4] = 500;
+
+    int *smaller =
+        my_realloc(values, 2 * sizeof(int));
+
+    if (smaller == NULL) {
+        printf("FAIL: realloc returned NULL\n");
+    } else {
+        printf("After shrinking:\n");
+        printf("%d %d\n",
+               smaller[0],
+               smaller[1]);
+
+        if (smaller[0] == 100 &&
+            smaller[1] == 200) {
+            printf("PASS: realloc preserved data while shrinking\n");
+        } else {
+            printf("FAIL: realloc corrupted data while shrinking\n");
+        }
+    }
+
+
+    printf("\n========== TEST 9: REALLOC NULL ==========\n");
+
+    void *r = my_realloc(NULL, 100);
+
+    if (r != NULL)
+        printf("PASS: realloc(NULL, size) works\n");
     else
-        printf("FAIL: multiple arena allocation\n");
+        printf("FAIL: realloc(NULL, size) failed\n");
 
 
-    printf("\n========== TEST 7: NULL FREE ==========\n");
+    printf("\n========== TEST 10: REALLOC ZERO ==========\n");
 
-    my_free(NULL);
+    void *s = my_malloc(100);
 
-    printf("PASS: my_free(NULL) did not crash\n");
+    void *result = my_realloc(s, 0);
+
+    if (result == NULL)
+        printf("PASS: realloc(ptr, 0) returned NULL\n");
+    else
+        printf("FAIL: realloc(ptr, 0) did not return NULL\n");
 
 
-    printf("\n========== TEST 8: INVALID FREE ==========\n");
+    printf("\n========== TEST 11: INVALID FREE ==========\n");
 
     int x = 42;
 
-    printf("Attempting to free stack variable...\n");
-
     my_free(&x);
 
-    printf("PASS: invalid free was rejected\n");
+    printf("PASS: allocator survived invalid free\n");
 
 
-    printf("\n========== TEST 9: INVALID CHECK ==========\n");
-
-    printf("Checking stack variable...\n");
+    printf("\n========== TEST 12: INVALID CHECK ==========\n");
 
     check_block(&x);
 
-    printf("PASS: invalid block check was rejected\n");
+
+    printf("\n========== TEST 13: MULTIPLE ARENAS ==========\n");
+
+    void *large1 = my_malloc(600000);
+    void *large2 = my_malloc(600000);
+
+    printf("large1 = %p\n", large1);
+    printf("large2 = %p\n", large2);
+
+    if (large1 != NULL && large2 != NULL)
+        printf("PASS: multiple arenas working\n");
+    else
+        printf("FAIL: multiple arenas\n");
 
 
-    printf("\n========== TEST 10: DOUBLE FREE ==========\n");
+    printf("\n========== TEST 14: DOUBLE FREE ==========\n");
 
-    void *m = my_malloc(100);
+    void *df = my_malloc(100);
 
-    printf("m = %p\n", m);
+    my_free(df);
+    printf("First free done\n");
 
-    my_free(m);
-
-    printf("First free done.\n");
-
-    my_free(m);
-
-    printf("Second free done.\n");
+    my_free(df);
+    printf("Second free done\n");
 
     printf("PASS: allocator survived double free\n");
 

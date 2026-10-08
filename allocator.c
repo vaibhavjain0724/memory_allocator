@@ -178,3 +178,35 @@ void check_block(void *ptr) {
   printf("size = %zu\n", block->size);
   printf("free = %d\n", block->free);
 }
+
+void *my_realloc(void *ptr, size_t size) {
+  if (ptr == NULL) {
+    return my_malloc(size);
+  }
+
+  if (size == 0) {
+    my_free(ptr);
+    return NULL;
+  }
+
+  block_t *block = find_block(ptr);
+
+  if (block == NULL)
+    return NULL;
+
+  size_t copy_size = block->size;
+
+  if (size < copy_size)
+    copy_size = size;
+
+  void *p = my_malloc(size);
+
+  if (p == NULL)
+    return NULL;
+
+  memcpy(p, ptr, copy_size);
+
+  my_free(ptr);
+
+  return p;
+}
