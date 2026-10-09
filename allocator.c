@@ -1,13 +1,12 @@
 #include "allocator.h"
 #include "arena.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 
 #include <pthread.h>
 
-static pthread_mutex_t allocator_lock =
-    PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t allocator_lock = PTHREAD_MUTEX_INITIALIZER;
 
 size_t align_size(size_t size) {
   if (size % 8 == 0)
@@ -36,8 +35,7 @@ static void *malloc_internal(size_t size) {
           block_t *new_block =
               (block_t *)((char *)traverser + sizeof(block_t) + size);
 
-          new_block->size =
-              traverser->size - size - sizeof(block_t);
+          new_block->size = traverser->size - size - sizeof(block_t);
 
           new_block->free = true;
 
@@ -111,7 +109,6 @@ void coalesce(arena_t *arena) {
   }
 }
 
-
 block_t *find_block(void *ptr) {
   arena_t *arena = arena_head;
 
@@ -119,8 +116,7 @@ block_t *find_block(void *ptr) {
     block_t *current = arena->block_head;
 
     while (current != NULL) {
-      void *block_memory =
-          (char *)current + sizeof(block_t);
+      void *block_memory = (char *)current + sizeof(block_t);
 
       if (block_memory == ptr) {
         return current;
@@ -139,8 +135,7 @@ static void free_internal(void *ptr) {
   if (ptr == NULL)
     return;
 
-  block_t *block =
-      find_block(ptr);
+  block_t *block = find_block(ptr);
 
   if (block == NULL)
     return;
@@ -175,62 +170,81 @@ void my_free(void *ptr) {
 }
 
 void *my_calloc(size_t n, size_t size) {
+  pthread_mutex_lock(&allocator_lock);
 
-  if (size != 0 && n > SIZE_MAX / size)
+  if (size != 0 && n > SIZE_MAX / size) {
+    pthread_mutex_unlock(&allocator_lock);
     return NULL;
+  }
 
   size_t total_size = n * size;
 
-  void *ptr = my_malloc(total_size);
+  void *ptr = malloc_internal(total_size);
 
-  if (ptr == NULL)
+  if (ptr == NULL) {
+    pthread_mutex_unlock(&allocator_lock);
     return NULL;
+  }
 
   memset(ptr, 0, total_size);
 
+  pthread_mutex_unlock(&allocator_lock);
   return ptr;
 }
 
 void check_block(void *ptr) {
-  block_t *block = find_block(ptr);
+    pthread_mutex_lock(&allocator_lock);
 
-  if (block == NULL) {
-    printf("Invalid block\n");
-    return;
-  }
+    block_t *block = find_block(ptr);
 
-  printf("size = %zu\n", block->size);
-  printf("free = %d\n", block->free);
+    if (block == NULL) {
+        printf("Invalid block\n");
+        pthread_mutex_unlock(&allocator_lock);
+        return;
+    }
+
+    printf("size = %zu\n", block->size);
+    printf("free = %d\n", block->free);
+
+    pthread_mutex_unlock(&allocator_lock);
 }
-
 void *my_realloc(void *ptr, size_t size) {
+  pthread_mutex_lock(&allocator_lock);
+
   if (ptr == NULL) {
-    return my_malloc(size);
+    void *p = malloc_internal(size);
+    pthread_mutex_unlock(&allocator_lock);
+    return p;
   }
 
   if (size == 0) {
-    my_free(ptr);
+    free_internal(ptr);
+    pthread_mutex_unlock(&allocator_lock);
     return NULL;
   }
 
   block_t *block = find_block(ptr);
 
-  if (block == NULL)
+  if (block == NULL) {
+    pthread_mutex_unlock(&allocator_lock);
     return NULL;
+  }
 
   size_t copy_size = block->size;
 
   if (size < copy_size)
     copy_size = size;
 
-  void *p = my_malloc(size);
+  void *p = malloc_internal(size);
 
-  if (p == NULL)
+  if (p == NULL) {
+    pthread_mutex_unlock(&allocator_lock);
     return NULL;
+  }
 
   memcpy(p, ptr, copy_size);
+  free_internal(ptr);
 
-  my_free(ptr);
-
+  pthread_mutex_unlock(&allocator_lock);
   return p;
 }
