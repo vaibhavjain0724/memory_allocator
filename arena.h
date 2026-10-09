@@ -19,11 +19,14 @@ typedef struct arena {
   block_t *block_tail;
   size_t used;
   struct arena *next;
+  size_t live_blocks;
 } arena_t;
 
 extern arena_t *arena_head;
 
 bool create_arena(void);
 block_t *create_block(size_t size, arena_t *arena);
+bool destroy_arena(arena_t *arena);
+
 
 #endif

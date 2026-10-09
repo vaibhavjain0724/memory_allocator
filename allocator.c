@@ -51,6 +51,8 @@ static void *malloc_internal(size_t size) {
 
         traverser->free = false;
 
+        arena_traverser->live_blocks++;
+
         return (char *)traverser + sizeof(block_t);
       }
 
@@ -60,7 +62,11 @@ static void *malloc_internal(size_t size) {
     if (arena_traverser->size - arena_traverser->used >= true_size) {
       block_t *memory = create_block(size, arena_traverser);
 
+      if (memory == NULL)
+        return NULL;
+
       arena_traverser->used += true_size;
+      arena_traverser->live_blocks++;
 
       return (char *)memory + sizeof(block_t);
     }
@@ -130,17 +136,14 @@ block_t *find_block(void *ptr) {
 
   return NULL;
 }
-
 static void free_internal(void *ptr) {
   if (ptr == NULL)
     return;
 
   block_t *block = find_block(ptr);
 
-  if (block == NULL)
+  if (block == NULL || block->free)
     return;
-
-  block->free = true;
 
   arena_t *arena = arena_head;
 
@@ -148,9 +151,16 @@ static void free_internal(void *ptr) {
     block_t *current = arena->block_head;
 
     while (current != NULL) {
-
       if (current == block) {
+        block->free = true;
+        arena->live_blocks--;
+
         coalesce(arena);
+
+        if (arena->live_blocks == 0) {
+        destroy_arena(arena);
+      }
+
         return;
       }
 
@@ -193,20 +203,20 @@ void *my_calloc(size_t n, size_t size) {
 }
 
 void check_block(void *ptr) {
-    pthread_mutex_lock(&allocator_lock);
+  pthread_mutex_lock(&allocator_lock);
 
-    block_t *block = find_block(ptr);
+  block_t *block = find_block(ptr);
 
-    if (block == NULL) {
-        printf("Invalid block\n");
-        pthread_mutex_unlock(&allocator_lock);
-        return;
-    }
-
-    printf("size = %zu\n", block->size);
-    printf("free = %d\n", block->free);
-
+  if (block == NULL) {
+    printf("Invalid block\n");
     pthread_mutex_unlock(&allocator_lock);
+    return;
+  }
+
+  printf("size = %zu\n", block->size);
+  printf("free = %d\n", block->free);
+
+  pthread_mutex_unlock(&allocator_lock);
 }
 void *my_realloc(void *ptr, size_t size) {
   pthread_mutex_lock(&allocator_lock);
